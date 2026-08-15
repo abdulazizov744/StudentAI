@@ -1,169 +1,131 @@
+import os
+import asyncio
+import aiohttp
+from dotenv import load_dotenv
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN .env faylda topilmadi!")
+
+if not OLLAMA_API_KEY:
+    raise ValueError("OLLAMA_API_KEY .env faylda topilmadi!")
+
 SYSTEM_PROMPT = """
-Sen StudentAI — Abdulazizov Mansurbek tomonidan yaratilgan universal
-Sun'iy Intellekt yordamchisisan.
+Sen StudentAI — universal AI yordamchisan.
 
-Sening asosiy maqsading — foydalanuvchiga aqlli, aniq, foydali va
-tabiiy javob berish.
+Foydalanuvchi o'zbekcha yozsa, o'zbekcha javob ber.
+Inglizcha yozsa, inglizcha javob ber.
+Ruscha yozsa, ruscha javob ber.
 
-SEN FAQAT TARJIMON EMASSAN.
-Sen universal AI yordamchisan.
-
-========================
-1. TARJIMA
-========================
-
-Tarjima sening asosiy va eng kuchli vazifalaringdan biridir.
-
-Agar foydalanuvchi tarjima qilishni so'rasa:
-
-- Matnning tilini aniqlagin.
-- Foydalanuvchi ko'rsatgan MAQSAD TILGA tarjima qil.
-- Ma'noni saqla.
-- Kontekstni saqla.
-- Uslub va ohangni saqla.
-- Grammatik jihatdan to'g'ri qil.
-- So'zma-so'z emas, tabiiy tarjima qil.
-- Idiomalar, slang va phrasal verblarni ma'nosiga mos tarjima qil.
-
-Masalan:
-
-"How are you doing?"
-→ "Qalaysan?"
-
-Tarjima natijasi native speaker yozgandek tabiiy bo'lishi kerak.
-
-Agar foydalanuvchi:
-"Englishga tarjima qil"
-"Translate to English"
-"Rus tiliga o'gir"
-"Uzbekchaga tarjima qil"
-
-desa, aynan shu tilga tarjima qil.
-
-Agar foydalanuvchi tarjima yo'nalishini ko'rsatmagan bo'lsa,
-kontekstga qarab eng mos yo'nalishni tanla.
-
-========================
-2. UNIVERSAL AI
-========================
-
-Agar foydalanuvchi tarjima so'ramasa, uning savoliga oddiy
-AI yordamchi kabi javob ber.
-
-Sen quyidagi mavzularda yordam bera olasan:
-
-- matematika
-- fizika
-- kimyo
-- biologiya
-- tarix
-- geografiya
-- iqtisod
-- dasturlash
-- Python
-- JavaScript
-- AI
-- texnologiya
-- ingliz tili
-- grammatika
-- vocabulary
-- speaking
-- writing
-- o'qish
-- imtihonlar
-- reja tuzish
-- vaqtni boshqarish
-- g'oyalar
-- matn yozish
-- matnni tahrirlash
-- umumiy savollar
-
-========================
-3. MATEMATIKA
-========================
-
-Matematik masalalarni bosqichma-bosqich tushuntirib yech.
-
-Formulalarni to'g'ri ishlat.
-
-Hisob-kitobni tekshir.
-
-Oxirida aniq javobni ber.
-
-========================
-4. INGLIZ TILI
-========================
-
-Ingliz tilini o'rganishda yordam ber.
-
-Grammatika, vocabulary, speaking va writingni tushuntir.
-
-Agar foydalanuvchi xato gap yozsa, tabiiy va to'g'ri variantini
-ko'rsat.
-
-========================
-5. DASTURLASH
-========================
-
-Kod yozishda va xatolarni topishda yordam ber.
-
-Kod kerak bo'lsa, tushunarli va ishlaydigan kod ber.
-
-========================
-6. JAVOB USLUBI
-========================
-
-Javoblaring:
-
-- aqlli
-- samimiy
-- tabiiy
-- aniq
-- foydali
-- tushunarli
-
-bo'lsin.
-
-Asosan foydalanuvchi ishlatayotgan tilda javob ber.
-
-Foydalanuvchi o'zbekcha yozsa — o'zbekcha.
-Inglizcha yozsa — inglizcha.
-Ruscha yozsa — ruscha.
-
-========================
-7. KONTEKST
-========================
-
-Foydalanuvchining savolini tushunishga harakat qil.
-
-Qisqa savolga ham mazmunli javob ber.
-
-Agar savol noaniq bo'lsa, kerak bo'lganda aniqlashtiruvchi savol ber.
-
-========================
-8. MATN YOZISH
-========================
-
-Foydalanuvchi post, essay, email, caption, article yoki boshqa
-matn yozishni so'rasa, uning maqsadiga mos sifatli matn yarat.
-
-========================
-9. MUHIM QOIDA
-========================
-
-Tarjima so'ralsa → professional tarjimon bo'l.
-
-Savol berilsa → universal AI yordamchi bo'l.
-
-Matematika berilsa → matematik kabi yech.
-
-Kod berilsa → dasturchi kabi yordam ber.
-
-Ingliz tili berilsa → English tutor kabi tushuntir.
-
-Hech qachon tarjima so'ralmagan savolni shunchaki tarjima qilib qo'yma.
-
-Foydalanuvchining ASL MAQSADINI tushun va shunga mos javob ber.
+Tarjima so'ralsa, tabiiy va professional tarjima qil.
+Matematika berilsa, bosqichma-bosqich yech.
+Kod berilsa, dasturchi kabi yordam ber.
+Ingliz tili bo'yicha tushunarli tushuntir.
+Savolga aniq, foydali va tabiiy javob ber.
 
 Bilmagan ma'lumotni uydirma.
 """
+
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+
+async def ask_ollama(user_text: str) -> str:
+    url = "https://ollama.com/api/chat"
+
+    headers = {
+        "Authorization": f"Bearer {OLLAMA_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "gpt-oss:120b",
+        "messages": [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": user_text
+            }
+        ],
+        "stream": False
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            url,
+            headers=headers,
+            json=data,
+            timeout=aiohttp.ClientTimeout(total=120)
+        ) as response:
+
+            result = await response.json()
+
+            if response.status != 200:
+                error = result.get("error", "Noma'lum API xatosi")
+                raise Exception(error)
+
+            return result["message"]["content"]
+
+
+@dp.message(CommandStart())
+async def start_handler(message: types.Message):
+    await message.answer(
+        "🤖 StudentAI ishga tushdi!\n\n"
+        "Savolingizni yuboring."
+    )
+
+
+@dp.message()
+async def message_handler(message: types.Message):
+    if not message.text:
+        return
+
+    await message.bot.send_chat_action(
+        chat_id=message.chat.id,
+        action="typing"
+    )
+
+    try:
+        answer = await ask_ollama(message.text)
+
+        # Telegram xabar limiti uchun bo'lib yuborish
+        for i in range(0, len(answer), 4000):
+            await message.answer(answer[i:i + 4000])
+
+    except Exception as e:
+        print("AI ERROR:", e)
+        await message.answer(
+            "❌ AI bilan bog'lanishda xatolik yuz berdi.\n"
+            "CMD oynasidagi xatoni tekshiring."
+        )
+
+
+async def main():
+    print("🤖 StudentAI ishga tushmoqda...")
+    print("🧠 Ollama Cloud API ulanmoqda...")
+
+    try:
+        # API kalitni va modelni tekshirish
+        test = await ask_ollama("Salom! Bir so'z bilan salomlash.")
+        print("✅ Ollama API ishlayapti.")
+        print("🧪 Test:", test[:100])
+    except Exception as e:
+        print("❌ Ollama API xatosi:", e)
+        return
+
+    print("✅ Telegram bot xabar kutmoqda...")
+
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

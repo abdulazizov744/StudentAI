@@ -15,25 +15,27 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+# Bu yerda botga qanday yordamchi bo'lishi kerakligini uqtiramiz
 SYSTEM_PROMPT = """
-Sen Abdulazizov Mansurbek tomonidan yaratilgan professional tarjimon AI botisan.
-Foydalanuvchi yuborgan matn yoki rasmdagi yozuvlarni tarjima qilib berasan. 
-Ortiqcha gapirmasdan faqat tarjimani yubor.
+Sen Abdulazizov Mansurbek tomonidan yaratilgan aqlli Sun'iy Intellekt yordamchisan. 
+Foydalanuvchining har qanday savoliga aniq, foydali va professional tarzda javob berasan. 
+Matnlarni tarjima qilish, har qanday tilga tarjima qilish albatta foydalanuvchui senday qaysi tilga tarjima qilish kerakligi aytadi,savollarga javob berish va g'oyalar topishda yordam berasiz.
 """
 
 @dp.message(CommandStart())
 async def start_handler(message: Message):
-    await message.answer("Salom! Menga istalgan tildagi matn yoki rasm yuboring, darhol tarjima qilib beraman! 🌐")
+    await message.answer("Salom! Men  Sun'iy Intellekt yordamchisiman. Menga istalgan savol bering yoki matn yuboring, yordam berishga tayyorman! 🤖")
 
 @dp.message(F.text)
-async def text_translate_handler(message: Message):
-    prompt = f"{SYSTEM_PROMPT}\n\nMatn: {message.text}"
-    response = model.generate_content(prompt)
+async def text_handler(message: Message):
+    # Foydalanuvchi yuborgan xabarni to'g'ridan-to'g'ri Gemini modeliga yuboramiz
+    chat = model.start_chat(history=[])
+    response = chat.send_message(f"{SYSTEM_PROMPT}\n\nFoydalanuvchi: {message.text}")
     await message.answer(response.text)
 
 @dp.message(F.photo)
-async def photo_translate_handler(message: Message):
-    await message.answer("🔍 Rasm o'qilmoqda...")
+async def photo_handler(message: Message):
+    await message.answer("🔍 Rasmni o'qib chiqayapman...")
     photo = message.photo[-1]
     file_info = await bot.get_file(photo.file_id)
     photo_bytes = await bot.download_file(file_info.file_path)
@@ -43,7 +45,7 @@ async def photo_translate_handler(message: Message):
         "data": photo_bytes.read()
     }
     
-    response = model.generate_content([SYSTEM_PROMPT, image_data])
+    response = model.generate_content([SYSTEM_PROMPT, "Bu rasmda nima tasvirlangan yoki undagi matnni tushuntirib ber:", image_data])
     await message.answer(response.text)
 
 async def handle(request):

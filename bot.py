@@ -81,7 +81,7 @@ async def ask_ollama(user_text: str) -> str:
 async def start_handler(message: types.Message):
     await message.answer(
         "🤖 StudentAI ishga tushdi!\n\n"
-        "Savolingizni yuboring."
+        "Savolingizni yuboring xatolik bolsa @abdulazizov_trd ga murojat qiling." 
     )
 
 
